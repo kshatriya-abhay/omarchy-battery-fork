@@ -19,6 +19,8 @@ PLUGIN_DIR=${PLUGIN_DIR:-$HOME/.config/omarchy/plugins/abhay.power}
 
 git() { command git -C "$REPO_DIR" "$@"; }
 
+echo -e "\e[32m\nSync omarchy.power fork\e[0m"
+
 stop() {
   echo "sync-upstream: $*" >&2
   exit 0
