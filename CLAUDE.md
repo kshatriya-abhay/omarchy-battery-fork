@@ -34,6 +34,10 @@ batteries (mouse, keyboard, headset, controllers), adapted from
    ```bash
    omarchy restart shell
    ```
-3. Check the shell log for QML errors mentioning `abhay.power` or `peripherals/`.
+3. Check the shell log for QML errors mentioning `abhay.power` or `peripherals/`:
+   `quickshell log -p /usr/share/omarchy/shell | grep -iE 'abhay.power/|peripherals/|Error'`
+
+To test without clicking: `omarchy-shell omarchy.power open|close|toggleCompact`
+(the clone keeps the built-in IPC target), then screenshot with `grim`.
 
 Never edit `/usr/share/omarchy/`; it belongs to the omarchy package.

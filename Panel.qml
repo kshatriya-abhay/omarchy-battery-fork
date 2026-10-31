@@ -62,10 +62,18 @@ Panel {
   readonly property int criticalThreshold: Math.min(setting("criticalThreshold", 10), lowThreshold - 1)
   readonly property bool notifyOnLow: setting("notifyOnLow", true)
   readonly property int notifyRepeatMinutes: setting("notifyRepeatMinutes", 0)
-  readonly property var deviceTypes: setting("deviceTypes", ["mouse", "keyboard", "headset", "gamepad"])
+  readonly property var deviceTypes: listSetting("deviceTypes", ["mouse", "keyboard", "headset", "gamepad"])
   // compact: show up to 3 devices in the bar, pinned ones first.
   readonly property bool compactMode: setting("compact", false) === true
-  readonly property var pinnedNames: settings && Array.isArray(settings.pinned) ? settings.pinned : []
+  readonly property var pinnedNames: listSetting("pinned", [])
+
+  // shell.json lists arrive as a list type that fails Array.isArray and lacks
+  // array methods, so copy anything list-like into a plain array.
+  function listSetting(name, fallback) {
+    var raw = settings ? settings[name] : null
+    if (!raw || typeof raw === "string" || typeof raw.length !== "number") return fallback
+    return Array.prototype.slice.call(raw)
+  }
   readonly property int compactLimit: 3
 
   function syncPeripheralSettings() {
@@ -329,8 +337,9 @@ Panel {
   onBatteryPresentChanged: if (!batteryPresent) close()
 
   visible: batteryPresent
-  implicitWidth: batteryPresent ? indicator.implicitWidth : 0
-  implicitHeight: batteryPresent ? indicator.implicitHeight : 0
+  implicitWidth: batteryPresent
+    ? button.implicitWidth + (showPeripheralLabel ? peripheralButton.implicitWidth : 0) : 0
+  implicitHeight: batteryPresent ? button.implicitHeight : 0
   readonly property bool showPeripheralLabel: peripheralBarText !== "" && !button.vertical
 
   Process {
@@ -404,13 +413,13 @@ Panel {
   // Battery icon, then the pinned peripherals ("glyph pct · ...") when any.
   Row {
     id: indicator
-    anchors.fill: parent
+    height: parent.height
 
     BarIconButton {
       id: button
       // Fill the slot like the stock button unless the peripheral label sits beside it.
-      width: root.showPeripheralLabel ? implicitWidth : parent.width
-      height: parent.height
+      width: root.showPeripheralLabel ? implicitWidth : root.width
+      height: root.height
       bar: root.bar
       text: root.showPercentage && !vertical
         ? Math.round(root.batteryFraction * 100) + "% " + root.batteryIcon()
@@ -426,7 +435,7 @@ Panel {
 
     WidgetButton {
       id: peripheralButton
-      height: parent.height
+      height: root.height
       visible: root.showPeripheralLabel
       bar: root.bar
       text: root.peripheralBarText
