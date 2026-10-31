@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "id": "omarchy.power",
-  "name": "Power",
+  "id": "abhay.power",
+  "name": "My Power",
   "version": "1.0.0",
   "author": "Omarchy",
   "description": "Battery, power profile, and system stats",
@@ -12,9 +12,12 @@
     "barWidget": "Panel.qml"
   },
   "barWidget": {
-    "displayName": "Power",
+    "displayName": "My Power",
     "description": "Battery, power profile, and system stats",
     "category": "System",
     "allowMultiple": false
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.power"
   }
 }
