@@ -1,0 +1,4 @@
+# Peripheral battery module, adapted from hl.peripheral_battery.
+singleton DeviceIcons DeviceIcons.qml
+PeripheralService PeripheralService.qml
+PeripheralSection PeripheralSection.qml

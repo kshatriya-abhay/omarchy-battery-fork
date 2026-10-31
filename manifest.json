@@ -4,18 +4,37 @@
   "name": "My Power",
   "version": "1.0.0",
   "author": "Omarchy",
-  "description": "Battery, power profile, and system stats",
+  "description": "Battery, power profile, system stats, and peripheral batteries",
   "kinds": [
-    "bar-widget"
+    "bar-widget",
+    "service"
   ],
   "entryPoints": {
-    "barWidget": "Panel.qml"
+    "barWidget": "Panel.qml",
+    "service": "peripherals/PeripheralService.qml"
   },
   "barWidget": {
     "displayName": "My Power",
-    "description": "Battery, power profile, and system stats",
+    "description": "Battery, power profile, system stats, and peripheral batteries",
     "category": "System",
-    "allowMultiple": false
+    "allowMultiple": false,
+    "defaults": {
+      "lowThreshold": 20,
+      "criticalThreshold": 10,
+      "notifyOnLow": true,
+      "notifyRepeatMinutes": 0,
+      "deviceTypes": ["mouse", "keyboard", "headset", "gamepad"]
+    },
+    "schema": [
+      {"key": "lowThreshold", "type": "integer", "min": 5, "max": 50, "label": "Peripheral warning battery %"},
+      {"key": "criticalThreshold", "type": "integer", "min": 1, "max": 49, "label": "Peripheral critical battery %"},
+      {"key": "notifyOnLow", "type": "boolean", "label": "Notify when a peripheral is low"},
+      {"key": "notifyRepeatMinutes", "type": "integer", "min": 0, "max": 720,
+       "label": "Re-notify every N minutes while low (0 = once)"},
+      {"key": "deviceTypes", "type": "multiselect",
+       "options": ["mouse", "keyboard", "headset", "headphones", "gamepad", "pen", "other"],
+       "label": "Peripheral types to show"}
+    ]
   },
   "omarchy": {
     "clonedFrom": "omarchy.power"
