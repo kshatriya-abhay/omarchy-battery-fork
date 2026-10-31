@@ -21,10 +21,6 @@ Panel {
   property string activeProfile: ""
   property int profileIndex: 0
   property bool cursorActive: false
-  // Keyboard cursor section: "profiles", then the peripheral "compact" switch
-  // and "devices" rows below it.
-  property string focusSection: "profiles"
-  property int deviceIndex: 0
   readonly property bool showPercentage: setting("showPercentage", false) === true
   // With the percentage shown the button paints a text block wider than an
   // icon, so the open-panel mark takes the painted width instead of the
@@ -55,7 +51,6 @@ Panel {
   readonly property var peripheralService: root.bar && root.bar.shell
     ? root.bar.shell.serviceFor(root.moduleName) : null
   readonly property var peripherals: peripheralService ? peripheralService.devices : []
-  readonly property bool hasPeripherals: peripherals.length > 0
 
   readonly property int lowThreshold: setting("lowThreshold", 20)
   // Must stay below lowThreshold or the warning tier disappears.
@@ -63,9 +58,6 @@ Panel {
   readonly property bool notifyOnLow: setting("notifyOnLow", true)
   readonly property int notifyRepeatMinutes: setting("notifyRepeatMinutes", 0)
   readonly property var deviceTypes: listSetting("deviceTypes", ["mouse", "keyboard", "headset", "gamepad"])
-  // compact: show up to 3 devices in the bar, pinned ones first.
-  readonly property bool compactMode: setting("compact", false) === true
-  readonly property var pinnedNames: listSetting("pinned", [])
 
   // shell.json lists arrive as a list type that fails Array.isArray and lacks
   // array methods, so copy anything list-like into a plain array.
@@ -74,7 +66,6 @@ Panel {
     if (!raw || typeof raw === "string" || typeof raw.length !== "number") return fallback
     return Array.prototype.slice.call(raw)
   }
-  readonly property int compactLimit: 3
 
   function syncPeripheralSettings() {
     if (!peripheralService) return
@@ -91,88 +82,6 @@ Panel {
   onNotifyRepeatMinutesChanged: syncPeripheralSettings()
   onDeviceTypesChanged: syncPeripheralSettings()
   Component.onCompleted: syncPeripheralSettings()
-
-  function deviceName(device) { return device.model || device.type }
-
-  // The device lowest on charge: drives the bar label's tint and tooltip.
-  readonly property var neediestPeripheral: {
-    var r = null
-    for (var i = 0; i < peripherals.length; i++)
-      if (!r || peripherals[i].pct < r.pct) r = peripherals[i]
-    return r
-  }
-  readonly property int peripheralTier: neediestPeripheral
-    ? DeviceIcons.tier(neediestPeripheral.pct, neediestPeripheral.state, lowThreshold, criticalThreshold) : 0
-
-  // What the bar shows next to the battery icon: pinned devices, or in
-  // compact mode pinned devices first and then the rest, up to compactLimit.
-  readonly property var barPeripherals: {
-    var pinned = []
-    var rest = []
-    for (var i = 0; i < peripherals.length; i++) {
-      if (pinnedNames.indexOf(deviceName(peripherals[i])) !== -1) pinned.push(peripherals[i])
-      else rest.push(peripherals[i])
-    }
-    return (compactMode ? pinned.concat(rest) : pinned).slice(0, compactLimit)
-  }
-  readonly property string peripheralBarText: {
-    var parts = []
-    for (var i = 0; i < barPeripherals.length; i++)
-      parts.push(DeviceIcons.glyph(barPeripherals[i].type) + " " + barPeripherals[i].pct + "%")
-    return parts.join(" · ")
-  }
-
-  function persistSettings(extra) {
-    root.settings = Object.assign({}, root.settings, extra)
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, root.settings)
-  }
-
-  function togglePin(name) {
-    var list = pinnedNames.slice()
-    var i = list.indexOf(name)
-    if (i !== -1) list.splice(i, 1)
-    else list.push(name)
-    persistSettings({ pinned: list })
-  }
-
-  function setCompact(on) { persistSettings({ compact: !!on }) }
-  function toggleCompact() { setCompact(!compactMode) }
-
-  function activatePeripheral(i) {
-    if (i < 0 || i >= peripherals.length) return
-    togglePin(deviceName(peripherals[i]))
-  }
-
-  // Up/down walks profiles -> compact switch -> device rows; left/right picks
-  // a profile. Without peripherals this is the stock behavior.
-  function moveCursor(dx, dy) {
-    if (!cursorActive) { cursorActive = true; return }
-    if (focusSection === "profiles") {
-      if (dx !== 0) selectProfileByDelta(dx)
-      else if (dy > 0 && hasPeripherals) focusSection = "compact"
-      else if (dy !== 0) selectProfileByDelta(dy)
-    } else if (focusSection === "compact") {
-      if (dy > 0) { focusSection = "devices"; deviceIndex = 0 }
-      else if (dy < 0) focusSection = "profiles"
-    } else if (focusSection === "devices") {
-      if (dy > 0) deviceIndex = Math.min(peripherals.length - 1, deviceIndex + 1)
-      else if (dy < 0) {
-        if (deviceIndex > 0) deviceIndex--
-        else focusSection = "compact"
-      }
-    }
-  }
-
-  function activateCursor() {
-    if (focusSection === "compact") toggleCompact()
-    else if (focusSection === "devices") activatePeripheral(deviceIndex)
-    else activateSelectedProfile()
-  }
-
-  onPeripheralsChanged: {
-    if (!hasPeripherals && focusSection !== "profiles") focusSection = "profiles"
-    else if (deviceIndex >= peripherals.length) deviceIndex = Math.max(0, peripherals.length - 1)
-  }
 
   function activateSelectedProfile() {
     if (profileIndex < 0 || profileIndex >= profiles.length) return
@@ -315,7 +224,6 @@ Panel {
     function hide() { root.close() }
     function toggle() { root.toggle() }
     function togglePercentage() { root.togglePercentage() }
-    function toggleCompact() { root.toggleCompact() }
   }
 
   onOpenedChanged: {
@@ -329,18 +237,14 @@ Panel {
       var idx = profiles.indexOf(activeProfile)
       profileIndex = idx >= 0 ? idx : 0
       cursorActive = false
-      focusSection = "profiles"
-      deviceIndex = 0
     }
   }
 
   onBatteryPresentChanged: if (!batteryPresent) close()
 
   visible: batteryPresent
-  implicitWidth: batteryPresent
-    ? button.implicitWidth + (showPeripheralLabel ? peripheralButton.implicitWidth : 0) : 0
+  implicitWidth: batteryPresent ? button.implicitWidth : 0
   implicitHeight: batteryPresent ? button.implicitHeight : 0
-  readonly property bool showPeripheralLabel: peripheralBarText !== "" && !button.vertical
 
   Process {
     id: batteryProc
@@ -410,53 +314,25 @@ Panel {
     }
   }
 
-  // Battery icon, then the pinned peripherals ("glyph pct · ...") when any.
-  Row {
-    id: indicator
-    height: parent.height
-
-    BarIconButton {
-      id: button
-      // Fill the slot like the stock button unless the peripheral label sits beside it.
-      width: root.showPeripheralLabel ? implicitWidth : root.width
-      height: root.height
-      bar: root.bar
-      text: root.showPercentage && !vertical
-        ? Math.round(root.batteryFraction * 100) + "% " + root.batteryIcon()
-        : root.batteryIcon()
-      slotSize: Style.bar.iconSlot * (root.showPercentage && !vertical ? 2 : 1)
-      tooltipText: ""
-      onPressed: function(b) {
-        if (!root.batteryPresent) return
-        if (b === Qt.RightButton) root.togglePercentage()
-        else root.toggle()
-      }
-    }
-
-    WidgetButton {
-      id: peripheralButton
-      height: root.height
-      visible: root.showPeripheralLabel
-      bar: root.bar
-      text: root.peripheralBarText
-      labelVisible: true
-      useActiveColor: false
-      fontSize: Style.font.body
-      foreground: DeviceIcons.tierColor(root.peripheralTier, root.barForeground)
-      tooltipText: root.neediestPeripheral
-        ? root.deviceName(root.neediestPeripheral) + " " + root.neediestPeripheral.pct + "%"
-        : ""
-      // Right-click flips "show all in bar", like the original plugin.
-      onPressed: function(b) {
-        if (b === Qt.RightButton) root.toggleCompact()
-        else root.toggle()
-      }
+  BarIconButton {
+    id: button
+    anchors.fill: parent
+    bar: root.bar
+    text: root.showPercentage && !vertical
+      ? Math.round(root.batteryFraction * 100) + "% " + root.batteryIcon()
+      : root.batteryIcon()
+    slotSize: Style.bar.iconSlot * (root.showPercentage && !vertical ? 2 : 1)
+    tooltipText: ""
+    onPressed: function(b) {
+      if (!root.batteryPresent) return
+      if (b === Qt.RightButton) root.togglePercentage()
+      else root.toggle()
     }
   }
 
   KeyboardPanel {
     id: panel
-    anchorItem: indicator
+    anchorItem: button
     owner: root
     bar: root.bar
     open: root.opened && root.batteryPresent
@@ -467,8 +343,12 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      onMoveRequested: function(dx, dy) { root.moveCursor(dx, dy) }
-      onActivateRequested: if (root.cursorActive) root.activateCursor()
+      onMoveRequested: function(dx, dy) {
+        if (!root.cursorActive) { root.cursorActive = true; return }
+        if (dx !== 0) root.selectProfileByDelta(dx)
+        else if (dy !== 0) root.selectProfileByDelta(dy)
+      }
+      onActivateRequested: if (root.cursorActive) root.activateSelectedProfile()
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
 
@@ -652,12 +532,11 @@ Panel {
                 verticalPadding: Style.spacing.controlPaddingY + Style.space(2)
                 bordered: true
                 active: root.activeProfile === modelData
-                hasCursor: root.cursorActive && root.focusSection === "profiles" && root.profileIndex === index
+                hasCursor: root.cursorActive && root.profileIndex === index
                 onClicked: root.setProfile(modelData)
                 onHovered: function(h) {
                   if (h) {
                     root.cursorActive = true
-                    root.focusSection = "profiles"
                     root.profileIndex = index
                   }
                 }
@@ -668,27 +547,17 @@ Panel {
 
         // ---------- Peripherals ----------
         PanelSeparator {
-          visible: root.hasPeripherals
+          visible: root.peripherals.length > 0
           foreground: root.bar.foreground
         }
 
         PeripheralSection {
-          visible: root.hasPeripherals
+          visible: root.peripherals.length > 0
           width: parent.width
           bar: root.bar
           devices: root.peripherals
-          pinnedNames: root.pinnedNames
-          compactMode: root.compactMode
           lowThreshold: root.lowThreshold
           criticalThreshold: root.criticalThreshold
-          cursorActive: root.cursorActive
-          focusSection: root.focusSection
-          selectedIndex: root.deviceIndex
-          onTogglePin: function(name) { root.togglePin(name) }
-          onCompactToggle: function(on) { root.setCompact(on) }
-          onHoverToggle: { root.cursorActive = true; root.focusSection = "compact" }
-          onHoverDevice: function(i) { root.cursorActive = true; root.focusSection = "devices"; root.deviceIndex = i }
-          onActivateDevice: function(i) { root.activatePeripheral(i) }
         }
       }
     }

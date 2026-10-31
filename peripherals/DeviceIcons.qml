@@ -1,10 +1,9 @@
 pragma Singleton
 import QtQuick
-import qs.Commons    // Color tokens
 
 // Single source of truth for device *types*: the canonical type list, the words
 // the `upower` CLI can emit, and the type -> glyph mapping. Registered as a
-// singleton in qmldir, so BatteryService / UPowerSource / Panel all share it.
+// singleton in qmldir, so PeripheralService / UPowerSource / PeripheralSection share it.
 //
 // Nerd Font (Material Design) codepoints — needs a Nerd-Font-patched family at the
 // bar for these to render. Built via String.fromCodePoint so the Plane-15 (5-hex)
@@ -31,7 +30,7 @@ QtObject {
         return normalized;
     }
 
-    // Charge tier shared by Widget's bar icon and DevicePanel's card tint:
+    // Charge tier used for the popup's red rows and the low-battery notifications:
     // 0 = normal, 1 = warning (<= lowThreshold), 2 = critical (<= criticalThreshold).
     // Charging/fully-charged is always 0 regardless of pct.
     function tier(pct, state, lowThreshold, criticalThreshold) {
@@ -39,18 +38,6 @@ QtObject {
         if (pct <= criticalThreshold) return 2;
         if (pct <= lowThreshold) return 1;
         return 0;
-    }
-
-    // Color.qml (the theme's Commons singleton) only defines
-    // foreground/background/accent/urgent/muted — there's no separate
-    // "warning/amber" token to reach for. So tier 1 is Color.urgent at
-    // reduced opacity (a visibly softer red) and tier 2 is full-strength
-    // Color.urgent; `normalColor` is whatever the caller uses at tier 0
-    // (differs between the bar icon and the popup card text).
-    function tierColor(tier, normalColor) {
-        if (tier === 2) return Color.urgent;
-        if (tier === 1) return Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.6);
-        return normalColor;
     }
 
     function glyph(type) {
@@ -67,11 +54,4 @@ QtObject {
 
     // charging indicator: nf-md-lightning_bolt
     readonly property string bolt: String.fromCodePoint(0xF140B)
-
-    // pin / unpinned (nf-md-pin / nf-md-pin_off)
-    readonly property string pin: String.fromCodePoint(0xF0403)
-    readonly property string pinOff: String.fromCodePoint(0xF0404)
-
-    // fixed bar summary icon: battery + wireless device (nf-md-battery_bluetooth)
-    readonly property string summary: String.fromCodePoint(0xF0948)
 }
