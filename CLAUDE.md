@@ -21,11 +21,12 @@ batteries (mouse, keyboard, headset, controllers), adapted from
 - `main`: `upstream` plus my changes.
 
 To take a new stock version, run `./sync-upstream.sh` on a clean `main`. It
-compares `upstream` with the installed stock plugin and, if they differ, merges
-the new stock files into `main` as "sync with upstream omarchy <version>",
-moves `upstream` forward, copies the plugin into place and restarts the shell.
-On a merge conflict it lists the files, aborts the merge so nothing changes,
-prints the `git merge` command to resolve it by hand, and still exits 0.
+copies the installed stock plugin onto `upstream` and commits it as "sync with
+upstream omarchy <version>" if anything changed, then cherry-picks that onto
+`main`. On success it copies the plugin into place, restarts the shell and
+pushes both branches to `origin` (skipped when there's no remote). On a
+conflict it aborts, puts `upstream` back so the next run retries, and prints
+the commands to resolve it by hand. It always exits 0.
 
 ## After every change
 
