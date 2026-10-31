@@ -5,8 +5,9 @@
 # 1. On `upstream`, replace the files with the installed stock plugin and
 #    commit "sync with upstream omarchy <version>" if anything changed.
 # 2. Cherry-pick that commit onto `main`.
-# 3. On success: copy the plugin into place, restart the shell, and push both
-#    branches to origin.
+# 3. On success: copy the plugin into place and restart the shell. With
+#    --push, or `git config sync-upstream.push true` in this repo (for hooks,
+#    which pass no arguments), also push both branches to origin.
 #    On a conflict: abort, put `upstream` back so the next run tries again, and
 #    print how to resolve it by hand.
 #
@@ -18,6 +19,9 @@ STOCK_DIR=${STOCK_DIR:-/usr/share/omarchy/shell/plugins/panels/power}
 PLUGIN_DIR=${PLUGIN_DIR:-$HOME/.config/omarchy/plugins/abhay.power}
 
 git() { command git -C "$REPO_DIR" "$@"; }
+
+push=false
+[[ ${1:-} == --push || $(git config --bool sync-upstream.push) == true ]] && push=true
 
 echo -e "\e[32m\nSync omarchy.power fork\e[0m"
 
@@ -74,7 +78,9 @@ echo "Copied to $PLUGIN_DIR"
 
 omarchy restart shell && echo "Restarted the Omarchy shell"
 
-if git remote get-url origin >/dev/null 2>&1; then
+if ! $push; then
+  echo "Not pushing (use --push, or: git -C $REPO_DIR config sync-upstream.push true)"
+elif git remote get-url origin >/dev/null 2>&1; then
   git push -q origin main upstream && echo "Pushed main and upstream to origin" ||
     echo "sync-upstream: push failed; run 'git push origin main upstream' later" >&2
 else

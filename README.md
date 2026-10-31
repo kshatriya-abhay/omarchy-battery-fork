@@ -28,9 +28,9 @@ omarchy plugin enable abhay.power   # replaces omarchy.power in the bar
 
 `sync-upstream.sh` brings new versions of the stock plugin into the fork. It
 commits the installed `omarchy.power` files on `upstream`, cherry-picks that
-onto `main`, then copies the plugin into place, restarts the shell and pushes
-both branches. If the cherry-pick conflicts, it changes nothing and prints how
-to resolve it by hand. It always exits 0.
+onto `main`, then copies the plugin into place and restarts the shell. If the
+cherry-pick conflicts, it changes nothing and prints how to resolve it by hand.
+It always exits 0.
 
 To run it at the end of every `omarchy update`, symlink it into the
 post-update hooks. Use a symlink, not `omarchy hook install`, which makes a
@@ -42,8 +42,17 @@ ln -s ~/src/omarchy-battery-fork/sync-upstream.sh \
 ```
 
 Keep the clone on `main` with no uncommitted changes; otherwise the hook skips
-with a message. The push only works to a repo you can write to, so fork this
-one and clone your fork if you want that step. Without access, the push fails
-with a message and the rest still runs.
+with a message.
+
+### Pushing to your own fork (optional)
+
+By default nothing is pushed. To also push `main` and `upstream` to `origin`
+after each sync, fork this repo, clone your fork, and either run
+`./sync-upstream.sh --push`, or turn it on for the hook (which passes no
+arguments):
+
+```bash
+git -C ~/src/omarchy-battery-fork config sync-upstream.push true
+```
 
 To remove the hook: `rm ~/.config/omarchy/hooks/post-update.d/omarchy-battery-fork-sync.hook`

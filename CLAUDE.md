@@ -23,10 +23,12 @@ batteries (mouse, keyboard, headset, controllers), adapted from
 To take a new stock version, run `./sync-upstream.sh` on a clean `main`. It
 copies the installed stock plugin onto `upstream` and commits it as "sync with
 upstream omarchy <version>" if anything changed, then cherry-picks that onto
-`main`. On success it copies the plugin into place, restarts the shell and
-pushes both branches to `origin` (skipped when there's no remote). On a
+`main`. On success it copies the plugin into place and restarts the shell.
+Pushing both branches to `origin` is off by default; this clone turns it on
+with `git config sync-upstream.push true` (or pass `--push`). On a
 conflict it aborts, puts `upstream` back so the next run retries, and prints
-the commands to resolve it by hand. It always exits 0.
+the commands to resolve it by hand. It always exits 0. It runs after every `omarchy update` through the symlink
+`~/.config/omarchy/hooks/post-update.d/omarchy-battery-fork-sync.hook`.
 
 ## After every change
 
