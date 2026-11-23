@@ -2,3 +2,4 @@
 singleton DeviceIcons DeviceIcons.qml
 PeripheralService PeripheralService.qml
 PeripheralSection PeripheralSection.qml
+HelperSource HelperSource.qml

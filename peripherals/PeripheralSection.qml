@@ -6,7 +6,9 @@ import qs.Commons    // Color, Style tokens
 // "PERIPHERALS" section of the power popup, adapted from hl.peripheral_battery's
 // DevicePanel. Read-only: one row per device with its type glyph, name, charge
 // bar and percentage. A row turns red once the device is at or below the low
-// threshold, the same point where the low-battery notification fires.
+// threshold, the same point where the low-battery notification fires. A device
+// with no percentage (pct null: a mouse charging on its cable) shows "Charging"
+// and no bar.
 Column {
     id: section
 
@@ -38,6 +40,7 @@ Column {
             readonly property bool low: DeviceIcons.tier(modelData.pct, modelData.state,
                 section.lowThreshold, section.criticalThreshold) > 0
             readonly property color tint: low ? Color.urgent : section.foreground
+            readonly property bool hasPct: typeof modelData.pct === "number"
 
             // line 1: type glyph + name + charging bolt + percentage
             RowLayout {
@@ -75,7 +78,7 @@ Column {
 
                 Text {
                     Layout.alignment: Qt.AlignVCenter
-                    text: modelData.pct + "%"
+                    text: deviceRow.hasPct ? modelData.pct + "%" : "Charging"
                     color: deviceRow.tint
                     font.family: section.fontFamily
                     font.pixelSize: Style.font.bodySmall
@@ -86,6 +89,7 @@ Column {
             // line 2: charge bar, styled like the laptop battery bar above
             Rectangle {
                 id: barTrack
+                visible: deviceRow.hasPct
                 width: parent.width
                 height: section.barHeight
                 radius: height / 2

@@ -20,15 +20,18 @@ Item {
     property var  deviceTypes: DeviceIcons.known   // filter set; overridden by Panel.qml
     property bool useUPower: false
 
-    // Steam Controller 2 (2026) is not exposed by UPower. A tiny native HID
-    // probe runs alongside either UPower path and is merged at publish time.
-    property var _steamDevice: null
-    property string _steamHelperPath: ""
-    readonly property string _steamBuildScriptPath: localPath("build_steam_controller_battery.sh")
-
-    function localPath(relativePath) {
-        var url = Qt.resolvedUrl(relativePath).toString();
-        return url.startsWith("file://") ? decodeURIComponent(url.substring(7)) : url;
+    // Devices UPower doesn't expose, read by native hidraw helpers that run
+    // alongside either UPower path and are merged at publish time.
+    HelperSource {
+        id: steamController     // Steam Controller 2 (2026)
+        name: "steam_controller_battery"
+        onDeviceChanged: svc.publish()
+    }
+    HelperSource {
+        id: aetherMouse         // Cosmic Byte Aether, 2.4 GHz dongle or cable
+        name: "cosmic_byte_aether_battery"
+        persistent: true        // event-driven: no per-poll process
+        onDeviceChanged: svc.publish()
     }
 
     // --- PATH B: parse the `upower` CLI ----------------------------------
@@ -70,59 +73,6 @@ Item {
         }
     }
 
-    Process {
-        id: steamBuild
-        command: ["sh", svc._steamBuildScriptPath]
-        running: true
-        stdout: StdioCollector { id: steamBuildOutput; waitForEnd: true }
-        stderr: StdioCollector { id: steamBuildError; waitForEnd: true }
-        onExited: function (code, status) {
-            if (code === 0) {
-                svc._steamHelperPath = steamBuildOutput.text.trim();
-                if (svc._steamHelperPath) steamBattery.running = true;
-            } else {
-                console.warn("Steam Controller battery helper build failed:", code,
-                    steamBuildError.text);
-            }
-        }
-    }
-
-    Process {
-        id: steamBattery
-        property bool _received: false
-        command: svc._steamHelperPath ? [svc._steamHelperPath] : []
-        stderr: StdioCollector { id: steamBatteryError }
-        onRunningChanged: if (running) _received = false
-        stdout: SplitParser {
-            onRead: function (line) {
-                try {
-                    var update = JSON.parse(line);
-                    steamBattery._received = true;
-                    svc._steamDevice = {
-                        id: update.id,
-                        type: update.type,
-                        pct: update.pct,
-                        state: update.state,
-                        model: update.model,
-                        charging: update.charging
-                    };
-                    svc.publish();
-                } catch (error) {
-                    console.warn("Steam Controller battery: invalid helper output:", error);
-                }
-            }
-        }
-        onExited: function (code, status) {
-            if (!_received) {
-                svc._steamDevice = null;
-                svc.publish();
-            }
-            if (code > 1)
-                console.warn("Steam Controller battery helper failed:", code,
-                    steamBatteryError.text);
-        }
-    }
-
     Timer {
         id: poll
         interval: 30000                // 30s safety net.
@@ -132,8 +82,7 @@ Item {
         // removed, not when an existing device's percentage/state changes —
         // so PATH A needs periodic re-publishing too, not just PATH B's CLI scan.
         onTriggered: {
-            if (svc._steamHelperPath && !steamBattery.running)
-                steamBattery.running = true;
+            steamController.refresh();
             if (svc.useUPower) { if (svc._upower) svc._upower.rebuild(); }
             else refresh();
         }
@@ -220,9 +169,12 @@ Item {
                 break;
             }
         }
-        if (_steamDevice && deviceTypes.includes(_steamDevice.type)
-                && !hasNativeSteamController)
-            merged.push(_steamDevice);
+        var steam = steamController.device;
+        if (steam && deviceTypes.includes(steam.type) && !hasNativeSteamController)
+            merged.push(steam);
+        var aether = aetherMouse.device;
+        if (aether && deviceTypes.includes(aether.type))
+            merged.push(aether);
 
         devices = merged;
         checkLow(merged);

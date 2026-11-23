@@ -32,9 +32,11 @@ QtObject {
 
     // Charge tier used for the popup's red rows and the low-battery notifications:
     // 0 = normal, 1 = warning (<= lowThreshold), 2 = critical (<= criticalThreshold).
-    // Charging/fully-charged is always 0 regardless of pct.
+    // Charging/fully-charged is always 0 regardless of pct, and so is a device
+    // that can't report a percentage (pct null).
     function tier(pct, state, lowThreshold, criticalThreshold) {
         if (state === "charging" || state === "fully-charged") return 0;
+        if (typeof pct !== "number") return 0;
         if (pct <= criticalThreshold) return 2;
         if (pct <= lowThreshold) return 1;
         return 0;
