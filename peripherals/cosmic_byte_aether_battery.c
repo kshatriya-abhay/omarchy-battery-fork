@@ -13,7 +13,11 @@
  *   - SET_FEATURE 09 81 01 00 00 00 00 00 00 makes the mouse push its state;
  *   - the state arrives as input report 09 <battery%> <stage|poll> ...
  * The mouse answers at most once every 5 s and ignores requests in between,
- * so a request is re-sent until a reply arrives. On the cable the firmware
+ * so a request is re-sent until a reply arrives. The first report after its
+ * radio link comes up (dongle plugged in, boot, or waking from sleep) is a
+ * placeholder, seen as 0 and 50, identical in every other byte; a link
+ * coming up can't be seen from here, so every reading skips the first report
+ * and takes the next, 5 s later. On the cable the firmware
  * reports 100 whatever the real charge, so the wired PID alone means
  * "charging" and the mouse is never asked.
  *
@@ -49,9 +53,8 @@
 #define STATE_REPORT_ID 0x09
 
 #define READ_INTERVAL_MS (5 * 60 * 1000) /* battery moves slowly */
-#define RETRY_MS (30 * 1000)             /* after a query got no reply, or a
-                                            first reading after connecting */
-#define QUERY_TIMEOUT_MS 6000            /* longer than the 5 s reply interval */
+#define RETRY_MS (30 * 1000)             /* after a query got no reply */
+#define QUERY_TIMEOUT_MS 12000           /* two reports, 5 s apart, plus slack */
 #define RESEND_MS 1000                   /* the mouse only answers on its 5 s tick */
 #define SCAN_SETTLE_MS 300               /* let udev finish nodes and ACLs */
 #define OPEN_RETRY_MS 2000               /* config node present but not openable yet */
@@ -83,7 +86,7 @@ static struct {
     int64_t next_resend;
     int64_t scan_at;       /* pending rescan, or -1 */
     int pct;               /* last dongle reading, or -1 */
-    int settled;           /* a reading after the first since connecting */
+    int skipped;           /* this query has skipped its first report */
     char last_line[256];
 } aether;
 
@@ -239,6 +242,7 @@ static void start_query(void)
         return;
     }
     aether.phase = QUERYING;
+    aether.skipped = 0;
     aether.query_deadline = monotonic_ms() + QUERY_TIMEOUT_MS;
     send_request();
 }
@@ -266,7 +270,6 @@ static void forget_dongle(void)
     finish_query(0);
     aether.config_number = -1;
     aether.pct = -1;
-    aether.settled = 0;
 }
 
 static void scan(void)
@@ -425,12 +428,12 @@ int main(void)
             if (gone || (polls[config_index].revents & (POLLERR | POLLHUP | POLLNVAL))) {
                 forget_dongle();
                 aether.scan_at = now + SCAN_SETTLE_MS;
+            } else if (pct >= 0 && !aether.skipped) {
+                TRACE("skipping first report %d", pct); /* may be a placeholder */
+                aether.skipped = 1;
             } else if (pct >= 0) {
-                /* The first report after the link comes up can be a placeholder
-                 * (seen: 50 on a full battery), so check again soon. */
                 aether.pct = pct;
-                finish_query(aether.settled ? READ_INTERVAL_MS : RETRY_MS);
-                aether.settled = 1;
+                finish_query(READ_INTERVAL_MS);
                 emit();
             }
         }

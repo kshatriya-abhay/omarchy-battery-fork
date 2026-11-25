@@ -32,8 +32,11 @@ batteries (mouse, keyboard, headset, controllers), adapted from
   reply is input report `09 <battery%> …`. Once asked, the mouse pushes its
   state every 5 s on its own and ignores requests in between, so the helper
   re-sends every second for up to 6 s, then closes the node until the next
-  reading. The first report after the link comes up can be wrong (50 on a
-  full battery), so it reads again 30 s after connecting. On the cable
+  reading. The first report after the radio link comes up (dongle plugged
+  in, boot, or the mouse waking from sleep) is a placeholder (seen: 0 and 50,
+  every other byte identical). A wake can't be told from ordinary movement,
+  so every reading skips the first report and takes the next, 5 s later.
+  On the cable
   it always reads 100, so the wired PID (`0x5B49`) alone means charging and
   the helper prints `"pct": null`; the popup then shows "Charging", no bar.
 
